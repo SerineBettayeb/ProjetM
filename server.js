@@ -1,19 +1,18 @@
-// server.js
 const express = require("express");
 const multer = require("multer");
 const ExcelJS = require("exceljs");
 const path = require("path");
 
 const app = express();
-const upload = multer({ dest: "uploads/" });
+const upload = multer({ dest: "/tmp" });
 
-app.use(express.static("public")); // dossier pour HTML/JS
+app.use(express.static("public"));
 
 app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).send("Aucun fichier");
 
   const inputFile = req.file.path;
-  const outputFile = path.join("uploads", `modifie_${req.file.originalname}`);
+  const outputFile = path.join("/tmp", `modifie_${req.file.originalname}`);
 
   try {
     const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(inputFile);
@@ -35,10 +34,9 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 
           if (colIndex !== -1 && rowValues[colIndex]) {
             const dateValue = rowValues[colIndex];
-
             if (!isNaN(dateValue)) {
               const excelEpoch = new Date(Date.UTC(1899, 11, 30));
-              const jsDate = new Date(excelEpoch.getTime() + dateValue*24*60*60*1000);
+              const jsDate = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
               jour = String(jsDate.getUTCDate()).padStart(2,"0");
               mois = String(jsDate.getUTCMonth()+1).padStart(2,"0");
               annee = String(jsDate.getUTCFullYear());
@@ -64,4 +62,5 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("🌐 Serveur lancé sur http://localhost:3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🌐 Serveur lancé sur http://localhost:${PORT}`));
