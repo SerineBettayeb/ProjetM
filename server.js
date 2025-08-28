@@ -5,7 +5,7 @@ const path = require("path");
 const fs = require("fs");
 
 const app = express();
-const upload = multer({ dest: "/tmp" }); // Temp folder Render
+const upload = multer({ dest: "/tmp" });
 
 app.use(express.static("public"));
 
@@ -77,7 +77,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
           }
         }
 
-        // Ajout des lignes restantes
         if(batch.length > 0){
           worksheetWriter.addRows(batch);
         }
@@ -86,7 +85,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       await workbookWriter.commit();
       console.log(`✅ Fichier traité: ${outputFile}`);
 
-      // Stocke le fichier traité pour téléchargement
       processedFiles[req.file.originalname] = outputFile;
 
     } catch(err) {
@@ -94,22 +92,28 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     }
   })();
 
-  // Réponse immédiate pour le navigateur
+  // Réponse immédiate
   res.send(`
     Fichier reçu. Traitement en cours.<br>
-    Téléchargez le fichier une fois prêt via: <a href="/download/${req.file.originalname}">/download/${req.file.originalname}</a>
+    Vérifiez le statut ici: <a href="/status/${req.file.originalname}">/status/${req.file.originalname}</a>
   `);
 });
 
-// Route download
-app.get("/download/:filename", (req, res) => {
-  const filename = req.params.filename;
-  const filePath = processedFiles[filename];
-
+// Statut du fichier
+app.get("/status/:filename", (req, res) => {
+  const filePath = processedFiles[req.params.filename];
   if(filePath && fs.existsSync(filePath)){
-    res.download(filePath, `modifie_${filename}`, err => {
-      if(err) console.error("Erreur download:", err);
-    });
+    res.json({ ready: true, url: `/download/${req.params.filename}` });
+  } else {
+    res.json({ ready: false });
+  }
+});
+
+// Téléchargement
+app.get("/download/:filename", (req, res) => {
+  const filePath = processedFiles[req.params.filename];
+  if(filePath && fs.existsSync(filePath)){
+    res.download(filePath, `modifie_${req.params.filename}`);
   } else {
     res.status(404).send("Fichier non disponible ou traitement pas encore terminé");
   }
@@ -118,7 +122,7 @@ app.get("/download/:filename", (req, res) => {
 // Render impose process.env.PORT
 const PORT = process.env.PORT;
 if (!PORT) {
-  console.error("❌ PORT non défini ! Render doit fournir process.env.PORT");
+  console.error("❌ PORT non défini !");
   process.exit(1);
 }
 
