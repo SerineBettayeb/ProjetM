@@ -6,20 +6,30 @@ const path = require("path");
 const app = express();
 const upload = multer({ dest: "/tmp" }); // disque temporaire Render
 
-// Sert ton frontend (HTML/JS/CSS) depuis le dossier public
+// Sert le frontend depuis public/
 app.use(express.static("public"));
 
+// Route upload avec logs et protection
 app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) return res.status(400).send("Aucun fichier");
+  console.log("📥 Requête reçue sur /upload");
+
+  if (!req.file) {
+    console.warn("⚠️ Aucun fichier reçu");
+    return res.status(400).send("Aucun fichier");
+  }
 
   const inputFile = req.file.path;
   const outputFile = path.join("/tmp", `modifie_${req.file.originalname}`);
+
+  console.log(`📁 Fichier reçu: ${req.file.originalname}`);
+  console.log(`🛠 Traitement en cours...`);
 
   try {
     const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(inputFile);
     const workbookWriter = new ExcelJS.stream.xlsx.WorkbookWriter({ filename: outputFile });
 
     for await (const worksheetReader of workbookReader) {
+      console.log(`📄 Lecture de la feuille: ${worksheetReader.name || "Feuille1"}`);
       const worksheetWriter = workbookWriter.addWorksheet(worksheetReader.name || "Feuille1");
       let headers = null;
 
@@ -28,6 +38,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
           headers = row.values.map(v => (v ? v.toString().trim() : ""));
           headers.push("Jour", "Mois", "Annee");
           worksheetWriter.addRow(headers).commit();
+          console.log(`📝 Headers ajoutés: ${headers.join(", ")}`);
         } else {
           const rowValues = row.values.map(v => (v ? v.toString() : ""));
           const colIndex = headers.indexOf("DATE_CREATION");
@@ -56,13 +67,19 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     }
 
     await workbookWriter.commit();
+    console.log(`✅ Fichier traité: ${outputFile}`);
     res.download(outputFile);
   } catch (err) {
-    console.error(err);
+    console.error("❌ Erreur pendant le traitement:", err);
     res.status(500).send("Erreur lors du traitement du fichier");
   }
 });
 
 // Render impose process.env.PORT
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🌐 Serveur lancé sur http://localhost:${PORT}`));
+const PORT = process.env.PORT;
+if (!PORT) {
+  console.error("❌ PORT non défini ! Render doit fournir process.env.PORT");
+  process.exit(1);
+}
+
+app.listen(PORT, () => console.log(`🌐 Serveur lancé sur le port ${PORT}`));
