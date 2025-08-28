@@ -16,18 +16,13 @@ const processedFiles = {};
 app.post("/upload", upload.single("file"), async (req, res) => {
   console.log("📥 Requête reçue sur /upload");
 
-  if (!req.file) {
-    console.warn("⚠️ Aucun fichier reçu");
-    return res.status(400).send("Aucun fichier");
-  }
+  if (!req.file) return res.status(400).send("Aucun fichier");
 
   const inputFile = req.file.path;
   const outputFile = path.join("/tmp", `modifie_${req.file.originalname}`);
-
   console.log(`📁 Fichier reçu: ${req.file.originalname}`);
   console.log("🛠 Traitement en arrière-plan...");
 
-  // Lance le traitement asynchrone
   (async () => {
     try {
       const workbookReader = new ExcelJS.stream.xlsx.WorkbookReader(inputFile);
@@ -38,7 +33,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
         const worksheetWriter = workbookWriter.addWorksheet(worksheetReader.name || "Feuille1");
 
         let headers = null;
-        let batch = [];
 
         for await (const row of worksheetReader) {
           if (!headers) {
@@ -56,38 +50,28 @@ app.post("/upload", upload.single("file"), async (req, res) => {
               if (!isNaN(dateValue)) {
                 const excelEpoch = new Date(Date.UTC(1899, 11, 30));
                 const jsDate = new Date(excelEpoch.getTime() + dateValue * 24 * 60 * 60 * 1000);
-                jour = String(jsDate.getUTCDate()).padStart(2,"0");
-                mois = String(jsDate.getUTCMonth()+1).padStart(2,"0");
+                jour = String(jsDate.getUTCDate()).padStart(2, "0");
+                mois = String(jsDate.getUTCMonth() + 1).padStart(2, "0");
                 annee = String(jsDate.getUTCFullYear());
               } else if (typeof dateValue === "string") {
                 const parts = dateValue.split("/");
-                jour = parts[0]||"";
-                mois = parts[1]||"";
-                annee = parts[2]||"";
+                jour = parts[0] || "";
+                mois = parts[1] || "";
+                annee = parts[2] || "";
               }
             }
 
             rowValues.push(jour, mois, annee);
-            batch.push(rowValues);
-
-            if(batch.length >= 1000){
-              worksheetWriter.addRows(batch);
-              batch = [];
-            }
+            worksheetWriter.addRow(rowValues).commit(); // Ligne par ligne obligatoire
           }
-        }
-
-        if(batch.length > 0){
-          worksheetWriter.addRows(batch);
         }
       }
 
       await workbookWriter.commit();
       console.log(`✅ Fichier traité: ${outputFile}`);
-
       processedFiles[req.file.originalname] = outputFile;
 
-    } catch(err) {
+    } catch (err) {
       console.error("❌ Erreur pendant le traitement:", err);
     }
   })();
@@ -102,24 +86,24 @@ app.post("/upload", upload.single("file"), async (req, res) => {
 // Statut du fichier
 app.get("/status/:filename", (req, res) => {
   const filePath = processedFiles[req.params.filename];
-  if(filePath && fs.existsSync(filePath)){
+  if (filePath && fs.existsSync(filePath)) {
     res.json({ ready: true, url: `/download/${req.params.filename}` });
   } else {
     res.json({ ready: false });
   }
 });
 
-// Téléchargement
+// Télécharger le fichier
 app.get("/download/:filename", (req, res) => {
   const filePath = processedFiles[req.params.filename];
-  if(filePath && fs.existsSync(filePath)){
+  if (filePath && fs.existsSync(filePath)) {
     res.download(filePath, `modifie_${req.params.filename}`);
   } else {
     res.status(404).send("Fichier non disponible ou traitement pas encore terminé");
   }
 });
 
-// Render impose process.env.PORT
+// Port fourni par Render
 const PORT = process.env.PORT;
 if (!PORT) {
   console.error("❌ PORT non défini !");
