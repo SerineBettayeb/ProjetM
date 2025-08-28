@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <title>Convertisseur Excel</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    h2 { color: #333; }
+    #status { margin-top: 10px; font-weight: bold; }
+  </style>
 </head>
 <body>
   <h2>Convertisseur DATE_CREATION → Jour/Mois/Annee</h2>
@@ -26,18 +31,23 @@
 
       status.textContent = "⏳ Traitement en cours…";
 
-      const response = await fetch("/upload", { method: "POST", body: formData });
+      try {
+        const response = await fetch("/upload", { method: "POST", body: formData });
 
-      if (response.ok) {
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `modifie_${fileInput.files[0].name}`;
-        a.click();
-        URL.revokeObjectURL(url);
-        status.textContent = "✅ Conversion terminée !";
-      } else {
+        if (response.ok) {
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `modifie_${fileInput.files[0].name}`;
+          a.click();
+          URL.revokeObjectURL(url);
+          status.textContent = "✅ Conversion terminée !";
+        } else {
+          status.textContent = "❌ Erreur lors du traitement.";
+        }
+      } catch (err) {
+        console.error(err);
         status.textContent = "❌ Erreur lors du traitement.";
       }
     });

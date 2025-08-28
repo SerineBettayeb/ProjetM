@@ -4,8 +4,9 @@ const ExcelJS = require("exceljs");
 const path = require("path");
 
 const app = express();
-const upload = multer({ dest: "/tmp" });
+const upload = multer({ dest: "/tmp" }); // disque temporaire Render
 
+// Sert ton frontend (HTML/JS/CSS) depuis le dossier public
 app.use(express.static("public"));
 
 app.post("/upload", upload.single("file"), async (req, res) => {
@@ -62,5 +63,6 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   }
 });
 
+// Render impose process.env.PORT
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🌐 Serveur lancé sur http://localhost:${PORT}`));
